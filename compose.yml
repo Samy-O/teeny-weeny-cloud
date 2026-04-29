@@ -19,18 +19,21 @@ services:
       - authentik-server
 
   # ── Authentication ───────────────────────────────────────────────────────────
+  x-authentik-env: &authentik-env
+    AUTHENTIK_REDIS__HOST: redis
+    AUTHENTIK_POSTGRESQL__HOST: postgres
+    AUTHENTIK_POSTGRESQL__USER: ${AUTHENTIK_DB_USER}
+    AUTHENTIK_POSTGRESQL__NAME: ${AUTHENTIK_DB_NAME}
+    AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_DB_PASSWORD}
+    AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+    AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+
   authentik-server:
     image: ghcr.io/goauthentik/server:latest
     restart: unless-stopped
     command: server
     environment:
-      AUTHENTIK_REDIS__HOST: redis
-      AUTHENTIK_POSTGRESQL__HOST: postgres
-      AUTHENTIK_POSTGRESQL__USER: ${AUTHENTIK_DB_USER}
-      AUTHENTIK_POSTGRESQL__NAME: ${AUTHENTIK_DB_NAME}
-      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_DB_PASSWORD}
-      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
-      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      <<: *authentik-env
     ports:
       - "9000:9000"   # HTTP (used by NPM forward auth)
       - "9443:9443"   # HTTPS
@@ -51,13 +54,7 @@ services:
     restart: unless-stopped
     command: worker
     environment:
-      AUTHENTIK_REDIS__HOST: redis
-      AUTHENTIK_POSTGRESQL__HOST: postgres
-      AUTHENTIK_POSTGRESQL__USER: ${AUTHENTIK_DB_USER}
-      AUTHENTIK_POSTGRESQL__NAME: ${AUTHENTIK_DB_NAME}
-      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_DB_PASSWORD}
-      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
-      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      <<: *authentik-env
     volumes:
       - ${DATA_PATH}/authentik/media:/media
       - ${DATA_PATH}/authentik/templates:/templates
