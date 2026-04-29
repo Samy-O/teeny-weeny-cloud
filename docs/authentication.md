@@ -1,4 +1,4 @@
-# Authentication
+# Setting up authentication
 
 Authentik provides unified login for all apps. It works in two modes depending on what each app supports:
 

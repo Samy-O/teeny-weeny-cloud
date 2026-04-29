@@ -1,4 +1,4 @@
-# Production
+# Configuring production
 
 Local port mappings are for testing only. In production, all traffic must go through Nginx Proxy Manager — direct port access bypasses SSL and Authentik entirely.
 
