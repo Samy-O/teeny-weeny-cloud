@@ -270,4 +270,8 @@ docker compose up -d
 
 ### Why?
 
-To reuse old hardware, quickly deploy local-only servers 
+To give that old laptop a second life — and to stop feeding your photos, notes, and files to corporations that store them forever, sell the metadata, train models on your memories, won't let you leave, and insidiously force you into a dystopian techno-servitude from which there will be no escape.
+
+### AI? 
+
+Yes, to generate configuration, debug, format and proofread the readme. Testing done by hand ofc.
