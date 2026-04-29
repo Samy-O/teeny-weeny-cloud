@@ -1,0 +1,230 @@
+name: teeny-cloud
+
+services:
+
+  # ── Reverse Proxy ────────────────────────────────────────────────────────────
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"       # NPM admin UI — restrict or remove after initial setup
+    volumes:
+      - ${DATA_PATH}/npm/data:/data
+      - ${DATA_PATH}/npm/letsencrypt:/etc/letsencrypt
+    networks:
+      - proxy
+    depends_on:
+      - authentik-server
+
+  # ── Authentication ───────────────────────────────────────────────────────────
+  authentik-server:
+    image: ghcr.io/goauthentik/server:latest
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__USER: ${AUTHENTIK_DB_USER}
+      AUTHENTIK_POSTGRESQL__NAME: ${AUTHENTIK_DB_NAME}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_DB_PASSWORD}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+    ports:
+      - "9000:9000"   # HTTP (used by NPM forward auth)
+      - "9443:9443"   # HTTPS
+    volumes:
+      - ${DATA_PATH}/authentik/media:/media
+      - ${DATA_PATH}/authentik/templates:/templates
+    networks:
+      - proxy
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:latest
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__USER: ${AUTHENTIK_DB_USER}
+      AUTHENTIK_POSTGRESQL__NAME: ${AUTHENTIK_DB_NAME}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_DB_PASSWORD}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+    volumes:
+      - ${DATA_PATH}/authentik/media:/media
+      - ${DATA_PATH}/authentik/templates:/templates
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── Applications ─────────────────────────────────────────────────────────────
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    restart: unless-stopped
+    command: --database /config/filebrowser.db
+    ports:
+      - "8080:80"
+    volumes:
+      - ${NAS_PATH}:/srv
+      - filebrowser_data:/config
+    networks:
+      - proxy
+
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:release
+    restart: unless-stopped
+    ports:
+      - "2283:2283"
+    volumes:
+      - ${NAS_PATH}/photos:/usr/src/app/upload
+    environment:
+      DB_HOSTNAME: immich-postgres
+      DB_USERNAME: ${IMMICH_DB_USER}
+      DB_PASSWORD: ${IMMICH_DB_PASSWORD}
+      DB_DATABASE_NAME: ${IMMICH_DB_NAME}
+      REDIS_HOSTNAME: redis
+    networks:
+      - proxy
+      - backend
+    depends_on:
+      immich-postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:release
+    restart: unless-stopped
+    volumes:
+      - ${DATA_PATH}/immich/model-cache:/cache
+    networks:
+      - backend
+
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    restart: unless-stopped
+    ports:
+      - "8096:8096"
+    volumes:
+      - ${DATA_PATH}/jellyfin/config:/config
+      - ${DATA_PATH}/jellyfin/cache:/cache
+      - ${NAS_PATH}/media:/media:ro
+    networks:
+      - proxy
+
+  joplin:
+    image: joplin/server:latest
+    restart: unless-stopped
+    ports:
+      - "22300:22300"
+    environment:
+      APP_PORT: 22300
+      APP_BASE_URL: ${JOPLIN_BASE_URL}
+      DB_CLIENT: pg
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: ${JOPLIN_DB_NAME}
+      POSTGRES_USER: ${JOPLIN_DB_USER}
+      POSTGRES_PASSWORD: ${JOPLIN_DB_PASSWORD}
+    networks:
+      - proxy
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  dockhand:
+    image: fnsys/dockhand:latest
+    container_name: dockhand
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - dockhand_data:/app/data
+    networks:
+      - proxy
+
+  # ── Databases ────────────────────────────────────────────────────────────────
+
+  # Shared Postgres for Authentik + Joplin
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+      AUTHENTIK_DB_USER: ${AUTHENTIK_DB_USER}
+      AUTHENTIK_DB_PASSWORD: ${AUTHENTIK_DB_PASSWORD}
+      AUTHENTIK_DB_NAME: ${AUTHENTIK_DB_NAME}
+      JOPLIN_DB_USER: ${JOPLIN_DB_USER}
+      JOPLIN_DB_PASSWORD: ${JOPLIN_DB_PASSWORD}
+      JOPLIN_DB_NAME: ${JOPLIN_DB_NAME}
+    volumes:
+      - ${DATA_PATH}/postgres:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Dedicated Postgres for Immich (requires pgvecto-rs extension)
+  immich-postgres:
+    image: tensorchord/pgvecto-rs:pg16-v0.2.0
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${IMMICH_DB_USER}
+      POSTGRES_PASSWORD: ${IMMICH_DB_PASSWORD}
+      POSTGRES_DB: ${IMMICH_DB_NAME}
+    volumes:
+      - ${DATA_PATH}/immich/postgres:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${IMMICH_DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Shared Redis for Immich + Authentik
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - ${DATA_PATH}/redis:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  proxy:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true   # no external access to DB network
+
+volumes:
+  dockhand_data:
+  filebrowser_data:

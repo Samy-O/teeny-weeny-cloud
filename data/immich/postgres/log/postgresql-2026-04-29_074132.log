@@ -1,0 +1,14 @@
+2026-04-29 07:41:32.524 UTC [1] LOG:  starting PostgreSQL 16.8 (Debian 16.8-1.pgdg120+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
+2026-04-29 07:41:32.524 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-04-29 07:41:32.524 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-04-29 07:41:32.527 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-04-29 07:41:32.539 UTC [31] LOG:  database system was shut down at 2026-04-29 07:41:26 UTC
+[2026-04-29T07:41:32Z INFO  service::utils::clean] Find directory "pg_vectors/indexes/17353".
+[2026-04-29T07:41:32Z INFO  service::utils::clean] Find directory "pg_vectors/indexes/17376".
+2026-04-29 07:41:32.553 UTC [1] LOG:  database system is ready to accept connections
+2026-04-29 07:46:32.606 UTC [29] LOG:  checkpoint starting: time
+2026-04-29 07:46:32.743 UTC [29] LOG:  checkpoint complete: wrote 4 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.109 s, sync=0.004 s, total=0.138 s; sync files=3, longest=0.002 s, average=0.002 s; distance=0 kB, estimate=0 kB; lsn=0/9F7DB08, redo lsn=0/9F7DAD0
+2026-04-29 07:51:32.819 UTC [29] LOG:  checkpoint starting: time
+2026-04-29 07:51:32.936 UTC [29] LOG:  checkpoint complete: wrote 2 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.105 s, sync=0.002 s, total=0.118 s; sync files=2, longest=0.002 s, average=0.001 s; distance=1 kB, estimate=1 kB; lsn=0/9F7DFF0, redo lsn=0/9F7DFB8
+2026-04-29 07:56:33.029 UTC [29] LOG:  checkpoint starting: time
+2026-04-29 07:56:36.234 UTC [29] LOG:  checkpoint complete: wrote 32 buffers (0.2%); 0 WAL file(s) added, 0 removed, 0 recycled; write=3.188 s, sync=0.002 s, total=3.206 s; sync files=19, longest=0.001 s, average=0.001 s; distance=4 kB, estimate=4 kB; lsn=0/9F7FEC8, redo lsn=0/9F7F3A0
